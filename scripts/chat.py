@@ -1,9 +1,22 @@
 import os
-from langchain_ollama import ChatOllama, OllamaEmbeddings
-from langchain_community.vectorstores import Chroma
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnablePassthrough
+from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 from langchain_core.output_parsers import StrOutputParser
+
+# ingest.py ile tutarlı olması için kütüphaneleri aynı şekilde import ediyoruz:
+from langchain_chroma import Chroma
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.chat_models import ChatOllama
+
+def format_docs(docs):
+    # Dönen Document objelerinin içindeki metinleri (page_content) birleştirip tek bir string (metin) yapar
+    return "\n\n".join(doc.page_content for doc in docs)
+
+def inspect(state):
+    print("----- RETRIEVED CONTEXT -----")
+    print(state["context"][:500] + "... (devamı var)") # sadece ilk 500 karakteri görelim
+    print("-----------------------------")
+    return state
 
 def start_chat():
     print("--- Modeller ve Veritabanı Hazırlanıyor ---")
@@ -14,7 +27,7 @@ def start_chat():
         persist_directory="../chromadb_storage",
         embedding_function=embeddings
     )
-    retriever = vector_db.as_retriever(search_kwargs={"k": 3})
+    retriever = vector_db.as_retriever(search_kwargs={"k": 5})
 
     # 2. Model ve Prompt Hazırla
     model = ChatOllama(model="llama3", temperature=0)
@@ -29,9 +42,10 @@ def start_chat():
     prompt = ChatPromptTemplate.from_template(template)
 
     # 3. Modern RAG Zinciri (LCEL)
-    # Bu yapı "langchain.chains" bağımlılığını ortadan kaldırır
+    print(retriever)
     rag_chain = (
-        {"context": retriever, "question": RunnablePassthrough()}
+        {"context": retriever | format_docs, "question": RunnablePassthrough()}
+        | RunnableLambda(inspect)
         | prompt
         | model
         | StrOutputParser()

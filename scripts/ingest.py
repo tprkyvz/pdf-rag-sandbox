@@ -3,6 +3,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_community.embeddings import OllamaEmbeddings
+from langchain_chroma import Chroma
 
 def run_ingestion():
     # 1. PDF Yükleme
@@ -10,16 +11,14 @@ def run_ingestion():
     loader = PyPDFLoader(pdf_path)
     docs = loader.load()
 
-    # 2. Metni Küçük Parçalara (Chunks) Ayırma
-    # Neden? Modelin bağlam penceresini (context window) aşmamak ve daha isabetli arama yapmak için.
+    
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000, 
         chunk_overlap=100
     )
     chunks = text_splitter.split_documents(docs)
 
-    # 3. Embedding (Vektörleştirme) ve ChromaDB'ye Kaydetme
-    # Llama 3 ile uyumlu çalışması için ollama üzerinden bir embedding modeli kullanıyoruz.
+    
     print(f"{len(chunks)} parça veritabanına ekleniyor...")
     
     vector_db = Chroma.from_documents(
